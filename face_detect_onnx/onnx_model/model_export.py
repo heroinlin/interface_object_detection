@@ -30,14 +30,19 @@ def decode(loc, priors_xy, priors_wh):
     Return:
         decoded bounding box predictions
     """
+    boxes_xy, boxes_wh = torch.split(loc, 2, dim=2)  # 转换为Slice操作ncnn20191113、20200426版本均可用
+    # boxes_xy = loc[..., 0:2]  # 转换为Split+Crop操作, 此写法ncnn20191113版本支持，20200426版本Crop失效不起切片作用
+    # boxes_wh = loc[..., 2:4]
     boxes = torch.cat((
-        priors_xy + loc[..., 0:2] * priors_wh,
-        priors_wh * torch.exp(loc[..., 2:4])), 2)
-    # boxes[:, :2]
-    # boxes[:, :2] -= boxes[:, 2:] / 2
-    # boxes[:, 2:] += boxes[:, :2]
+        priors_xy + boxes_xy * priors_wh,
+        priors_wh * torch.exp(boxes_wh)), 2)
     return boxes
 
+def transform_box(boxes):
+    boxes_xy, boxes_wh = torch.split(boxes, 2, dim=2)
+    bboxes = torch.cat((boxes_xy - boxes_wh/2, boxes_xy + boxes_wh/2), 2)
+    # bboxes = torch.clamp(bboxes, 0, 1.0)
+    return bboxes
 
 class SSDPriorBox(object):
     def __init__(self, cfg):
@@ -91,6 +96,7 @@ class SSDHead(torch.nn.Module):
         # self.image_size = image_size.repeat((735, 1)).unsqueeze(0)
         self.model = model
         self.decode = decode
+        self.transform_box = transform_box
         self.priors = priors.forward()
         self.priors = self.priors.to(self.device)
         self.priors_xy = self.priors[..., 0:2]
@@ -100,8 +106,9 @@ class SSDHead(torch.nn.Module):
         score, boxes = self.model(x)
         boxes = decode(boxes, self.priors_xy, self.priors_wh)
         score = torch.sigmoid(score)
+        bboxes = self.transform_box(boxes)
+        output = torch.cat([bboxes, score], 2)
         # boxes = boxes * self.image_size
-        output = torch.cat([boxes, score], 2)
         return output
 
 

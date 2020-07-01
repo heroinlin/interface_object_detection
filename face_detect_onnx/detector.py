@@ -104,7 +104,7 @@ class Detector(ONNXInference):
         """
         indices = np.where(boxes[:, 4] > self.obj_threshold)
         boxes = boxes[indices]
-        boxes = change_box_order(boxes, order="xywh2xyxy")
+        # boxes = change_box_order(boxes, order="xywh2xyxy")
         keep = py_cpu_nms(boxes, self.nms_threshold)
         boxes = boxes[keep]
         return boxes
