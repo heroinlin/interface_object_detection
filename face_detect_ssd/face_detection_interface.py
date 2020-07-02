@@ -35,16 +35,25 @@ def post_process(scores, boxes, detect_threshold=0.7, nms_threshold=0.3):
     return scores, boxes
 
 
-def draw_detection_rects(image, detection_rects, color=(0, 255, 0)):
-    for rect in detection_rects:
+def draw_detection_rects(image: np.ndarray, detection_rects: np.ndarray, color=(0, 255, 0), method=1):
+    if not isinstance(detection_rects, np.ndarray):
+        detection_rects = np.array(detection_rects)
+    if method:
+        width = image.shape[1]
+        height = image.shape[0]
+    else:
+        width = 1.0
+        height = 1.0
+    for index in range(detection_rects.shape[0]):
         cv2.rectangle(image,
-                      (int(rect[1] * image.shape[1]), int(rect[2] * image.shape[0])),
-                      (int(rect[3] * image.shape[1]), int(rect[4] * image.shape[0])),
+                      (int(detection_rects[index, 0] * width), int(detection_rects[index, 1] * height)),
+                      (int(detection_rects[index, 2] * width), int(detection_rects[index, 3] * height)),
                       color,
                       thickness=2)
-        cv2.putText(image, f"{rect[0]:.03f}",
-                    (int(rect[1] * image.shape[1]), int(rect[2] * image.shape[0])), 1, 1, (255, 0, 255))
-    return image
+        if detection_rects.shape[1] == 5:
+            cv2.putText(image, f"{detection_rects[index, 4]:.03f}",
+                        (int(detection_rects[index, 0] * width), int(detection_rects[index, 1] * height)),
+                        1, 1, (255, 0, 255))
 
 
 def recursion_change_bn(module):
@@ -109,7 +118,7 @@ class FaceDetector(object):
         scores, boxes = post_process(conf_predict, loc_predict,
                                      self.config.get("detect_threshold"), self.config.get("nms_threshold"))
         scores = scores.reshape(len(scores), 1)
-        bounding_boxes = np.hstack((scores, boxes))
+        bounding_boxes = np.hstack((boxes, scores))
         return bounding_boxes
 
 
