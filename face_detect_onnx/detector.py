@@ -61,7 +61,7 @@ class Detector(ONNXInference):
         if onnx_file_path is None:
             onnx_file_path = os.path.join(working_root,
                                           'onnx_model',
-                                          "mobilenet_v2_184_0.1701-sim.onnx")
+                                          "mobilenet_v2_0.25_43_0.1162-sim.onnx")
         super(Detector, self).__init__(onnx_file_path)
         self.cfg = cfg.clone()
         self.cfg.freeze()

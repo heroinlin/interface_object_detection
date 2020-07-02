@@ -6,7 +6,7 @@ from collections import OrderedDict
 import math
 import numpy as np
 from itertools import product
-from utils.combine_conv_bn import fuse_module
+from combine_conv_bn import fuse_module
 
 cfg_ssd = {
         'steps': [8, 16, 32, 64, 128],
@@ -147,6 +147,10 @@ def onnx_simplifier(checkpoint_path, export_model_name):
 
 
 if __name__ == '__main__':
-    checkpoint_path = r"D:\workspace\Pytorch\bitbucket\object_detection\checkpoints\mobilenet_v2_184_0.1701.pth"
+    root_dir = os.path.split(os.path.realpath(__file__))[0]
+    checkpoint_path = os.path.join(os.path.dirname(os.path.dirname(root_dir)),\
+        r"face_detect_ssd\models\mobilenet_v2_0.25_43_0.1162.pth")
     export_model_name = checkpoint_path.replace(".pth", ".onnx")
+    sim_export_model_name = checkpoint_path.replace(".pth", "-sim.onnx")
     export_model(checkpoint_path, export_model_name)
+    onnx_simplifier(export_model_name, sim_export_model_name)
