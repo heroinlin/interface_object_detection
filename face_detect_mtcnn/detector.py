@@ -12,9 +12,9 @@ from .utils import nms, convert_to_square, calibrate_box, correct_bboxes
 
 
 class FaceDetector(object):
-    def __init__(self, checkpoint_file_path=None, detect_threshold=0.7, nms_threshold=0.3, device=None):
+    def __init__(self, model_path=None, device=None):
         super(FaceDetector, self).__init__()
-        self.checkpoint_file_path = checkpoint_file_path
+        self.model_path = model_path
         self.default_boxes = None
         self.transforms = None
         self.pnet = PNet()
@@ -22,19 +22,28 @@ class FaceDetector(object):
         self.onet = ONet()
         self.device = device
         self.config = {
-            "width": 160,
-            "height": 144,
-            "mean": [0.446, 0.446, 0.443],
-            "stddev": [0.248, 0.246, 0.249],
-            "detect_threshold": detect_threshold,
-            "nms_threshold": nms_threshold
+            'width': -1,
+            'height': -1,
+            'color_format': 'RGB',
+            'mean': [127.5, 127.5, 127.5],
+            'stddev': [1.0/0.0078125, 1.0/0.0078125, 1.0/0.0078125],
+            'divisor': 1.0,
+            'detect_threshold': 0.7,
+            'nms_threshold': 0.3
         }
 
-    def _preprocess(self, img):
-        img = img.transpose((2, 0, 1))
-        img = np.expand_dims(img, 0)
-        img = (img - 127.5) * 0.0078125
-        return img
+    def set_config(self, key, value):
+        self.config[key] = value
+
+    def _preprocess(self, image):
+        if self.config['color_format'] == "RGB":
+            image = image[:, :, ::-1]
+        if self.config['width'] > 0 and self.config['height'] > 0:
+            image = cv2.resize(image, (self.config['width'], self.config['height']))
+        input_image = (np.array(image, dtype=np.float32) / self.config['divisor'] - self.config['mean']) / self.config['stddev']
+        input_image = input_image.transpose(2, 0, 1)
+        input_image = np.expand_dims(input_image, 0)
+        return input_image
 
     def _generate_bboxes(self, probs, offsets, scale, threshold):
         stride = 2

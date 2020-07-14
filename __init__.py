@@ -1,7 +1,5 @@
-from .face_detect_mtcnn import FaceDetector as FaceDetector_mtcnn, show_bboxes
-from .face_detect_ssd import FaceDetector as FaceDetector_ssd, box_transform
-from .face_detect_onnx import Detector as FaceDetector_onnx, draw_detection_rects
+from .face_detect_mtcnn import FaceDetector as FaceDetector_mtcnn
+from .face_detect_ssd import FaceDetector as FaceDetector_ssd
+from .face_detect_onnx import Detector as FaceDetector_onnx
 
-
-
-FaceDetector = FaceDetector_ssd
+__all_ = ['FaceDetector_mtcnn', 'FaceDetector_ssd', 'FaceDetector_onnx']

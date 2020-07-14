@@ -6,14 +6,13 @@ import onnxruntime
 import os
 import cv2
 
-from .defaults import _C as cfg
-from .utils import py_cpu_nms, change_box_order
+from .utils import py_cpu_nms
 
 working_root = os.path.split(os.path.realpath(__file__))[0]
 
 
 class ONNXInference(object):
-    def __init__(self, onnx_file_path=None):
+    def __init__(self, model_path=None):
         """
         对ONNXInference进行初始化
 
@@ -23,11 +22,11 @@ class ONNXInference(object):
             onnx模型的路径，推荐使用绝对路径
         """
         super().__init__()
-        self.onnx_file_path = onnx_file_path
-        if self.onnx_file_path is None:
+        self.model_path = model_path
+        if self.model_path is None:
             print("please set onnx model path!\n")
             exit(-1)
-        self.session = onnxruntime.InferenceSession(self.onnx_file_path)
+        self.session = onnxruntime.InferenceSession(self.model_path)
 
     def inference(self, x: np.ndarray):
         """
@@ -50,7 +49,7 @@ class ONNXInference(object):
 
 
 class Detector(ONNXInference):
-    def __init__(self, onnx_file_path=None):
+    def __init__(self, model_path=None):
         """对Detector进行初始化
 
         Parameters
@@ -58,16 +57,24 @@ class Detector(ONNXInference):
         onnx_file_path : str
             onnx模型的路径，推荐使用绝对路径
         """
-        if onnx_file_path is None:
-            onnx_file_path = os.path.join(working_root,
+        if model_path is None:
+            model_path = os.path.join(working_root,
                                           'onnx_model',
-                                          "mobilenet_v2_0.25_43_0.1162-sim.onnx")
-        super(Detector, self).__init__(onnx_file_path)
-        self.cfg = cfg.clone()
-        self.cfg.freeze()
+                                          "ssdlite.onnx")
+        super(Detector, self).__init__(model_path)
+        self.config = {
+            'width': 160,
+            'height': 144,
+            'color_format': 'RGB',
+            'mean': [0.4914, 0.4822, 0.4465],
+            'stddev': [0.247, 0.243, 0.261],
+            'divisor': 255.0,
+            'detect_threshold': 0.6,
+            'nms_threshold': 0.3
+        }
 
-        self.obj_threshold = cfg.INPUT.OBJ_THRESHOLD
-        self.nms_threshold = cfg.INPUT.NMS_THRESHOLD
+    def set_config(self, key, value):
+        self.config[key] = value
 
     def _pre_process(self, image: np.ndarray) -> np.ndarray:
         """对图像进行预处理
@@ -82,10 +89,11 @@ class Detector(ONNXInference):
         np.ndarray
             原始图像经过预处理后得到的数组
         """
-        if self.cfg.INPUT.FORMAT == "RGB":
+        if self.config['color_format'] == "RGB":
             image = image[:, :, ::-1]
-        image = cv2.resize(image, (cfg.INPUT.WIDTH, cfg.INPUT.HEIGHT))
-        input_image = (np.array(image, dtype=np.float32) / 255 - cfg.INPUT.PIXEL_MEAN) / cfg.INPUT.PIXEL_STD
+        if self.config['width'] > 0 and self.config['height'] > 0:
+            image = cv2.resize(image, (self.config['width'], self.config['height']))
+        input_image = (np.array(image, dtype=np.float32) / self.config['divisor'] - self.config['mean']) / self.config['stddev']
         input_image = input_image.transpose(2, 0, 1)
         input_image = np.expand_dims(input_image, 0)
         return input_image
@@ -102,10 +110,10 @@ class Detector(ONNXInference):
             np.ndarray
             返回值维度为(n, 5)，其中n表示目标数量，5表示(x1, y1, x2, y2, score)
         """
-        indices = np.where(boxes[:, 4] > self.obj_threshold)
+        indices = np.where(boxes[:, 4] > self.config['detect_threshold'])
         boxes = boxes[indices]
         # boxes = change_box_order(boxes, order="xywh2xyxy")
-        keep = py_cpu_nms(boxes, self.nms_threshold)
+        keep = py_cpu_nms(boxes, self.config['nms_threshold'])
         boxes = boxes[keep]
         return boxes
 
