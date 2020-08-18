@@ -60,7 +60,7 @@ class Detector(ONNXInference):
         if model_path is None:
             model_path = os.path.join(working_root,
                                           'onnx_model',
-                                          "ssdlite.onnx")
+                                          "mobilenet_v2_0.25_43_0.1162-sim.onnx")
         super(Detector, self).__init__(model_path)
         self.config = {
             'width': 160,
