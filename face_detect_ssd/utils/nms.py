@@ -3,13 +3,13 @@
 import numpy as np
 
 
-def py_cpu_nms(boxes, scores, thresh):
+def py_cpu_nms(boxes, thresh):
     """Pure Python NMS baseline."""
     y1 = boxes[:, 0]
     x1 = boxes[:, 1]
     y2 = boxes[:, 2]
     x2 = boxes[:, 3]
-
+    scores = boxes[:, 4]
     areas = (x2 - x1) * (y2 - y1)
     order = scores.argsort()[::-1]
 

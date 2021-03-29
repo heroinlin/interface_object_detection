@@ -145,7 +145,8 @@ class FaceDetector(TorchInference):
             原始图像经过预处理后得到的数组
         """
         if self.config['color_format'] == "RGB":
-            image = image[:, :, ::-1]
+            # image = image[:, :, ::-1]  # 比下一行慢2ms左右
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         if self.config['width'] > 0 and self.config['height'] > 0:
             image = cv2.resize(image, (self.config['width'], self.config['height']))
         input_image = (np.array(image, dtype=np.float32) / self.config['divisor'] - self.config['mean']) / self.config['stddev']
@@ -154,18 +155,25 @@ class FaceDetector(TorchInference):
         input_image = torch.from_numpy(input_image).float()
         return input_image
 
-    def _post_process(self, boxes: np.ndarray) -> np.ndarray:
+    def _post_process(self, outputs: torch.Tensor) -> np.ndarray:
         """
         对网络输出框进行后处理
         Parameters
         ----------
-        boxes: np.ndarray
-            网络输出框
+        outputs: torch.Tensor
+            网络推理结果
         Returns
         -------
             np.ndarray
             返回值维度为(n, 5)，其中n表示目标数量，5表示(x1, y1, x2, y2, score)
         """
+        conf_predict, loc_predict = outputs
+        conf_predict = conf_predict.view(-1).sigmoid().data.cpu().numpy()
+        loc_predict = loc_predict.view(-1, 4).data.cpu().numpy()
+        loc_predict = decode(loc_predict, self.default_boxes)
+        conf_predict = conf_predict.reshape(len(conf_predict), 1)
+        boxes = np.hstack([loc_predict, conf_predict])
+
         indices = np.where(boxes[:, 4] > self.config['detect_threshold'])
         boxes = boxes[indices]
         # boxes = change_box_order(boxes, order="xywh2xyxy")
@@ -175,16 +183,8 @@ class FaceDetector(TorchInference):
 
     def detect(self, input_image):
         input_image = self._pre_process(input_image)
-
         outputs = self.inference(input_image)
-        conf_predict, loc_predict = outputs
-        conf_predict = conf_predict.view(-1).sigmoid().data.cpu().numpy()
-        loc_predict = loc_predict.view(-1, 4).data.cpu().numpy()
-        loc_predict = decode(loc_predict, self.default_boxes)
-        conf_predict = conf_predict.reshape(len(conf_predict), 1)
-        boxes = np.hstack([loc_predict, conf_predict])
-
-        boxes = self._post_process(boxes)
+        boxes = self._post_process(outputs)
         return boxes
 
 

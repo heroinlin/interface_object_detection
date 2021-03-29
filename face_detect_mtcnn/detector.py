@@ -37,7 +37,7 @@ class FaceDetector(object):
 
     def _preprocess(self, image):
         if self.config['color_format'] == "RGB":
-            image = image[:, :, ::-1]
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         if self.config['width'] > 0 and self.config['height'] > 0:
             image = cv2.resize(image, (self.config['width'], self.config['height']))
         input_image = (np.array(image, dtype=np.float32) / self.config['divisor'] - self.config['mean']) / self.config['stddev']

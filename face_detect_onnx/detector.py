@@ -90,7 +90,7 @@ class Detector(ONNXInference):
             原始图像经过预处理后得到的数组
         """
         if self.config['color_format'] == "RGB":
-            image = image[:, :, ::-1]
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         if self.config['width'] > 0 and self.config['height'] > 0:
             image = cv2.resize(image, (self.config['width'], self.config['height']))
         input_image = (np.array(image, dtype=np.float32) / self.config['divisor'] - self.config['mean']) / self.config['stddev']
@@ -98,18 +98,19 @@ class Detector(ONNXInference):
         input_image = np.expand_dims(input_image, 0)
         return input_image
 
-    def _post_process(self, boxes: np.ndarray) -> np.ndarray:
+    def _post_process(self, outputs: list) -> np.ndarray:
         """
         对网络输出框进行后处理
         Parameters
         ----------
-        boxes: np.ndarray
-            网络输出框
+        boxes: list
+            网络推理结果
         Returns
         -------
             np.ndarray
             返回值维度为(n, 5)，其中n表示目标数量，5表示(x1, y1, x2, y2, score)
         """
+        boxes = outputs[0].squeeze()
         indices = np.where(boxes[:, 4] > self.config['detect_threshold'])
         boxes = boxes[indices]
         # boxes = change_box_order(boxes, order="xywh2xyxy")
@@ -132,6 +133,5 @@ class Detector(ONNXInference):
         """
         image = self._pre_process(image)
         outputs = self.inference(image)
-        boxes = outputs[0].squeeze()
-        boxes = self._post_process(boxes)
+        boxes = self._post_process(outputs)
         return np.array(boxes)
